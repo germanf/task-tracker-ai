@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="navbarTitle">Gestión de Tareas</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- i18next -->
+    <script src="https://unpkg.com/i18next@latest/i18next.min.js"></script>
+    <style>
+        :root {
+            --btn-hover-brightness: 0.9;
+        }
+
+        .dark-mode {
+            --btn-hover-brightness: 1.1;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        /* Hover en botones (para ambos modos) */
+        .btn:hover {
+            filter: brightness(var(--btn-hover-brightness));
+        }
+
+        /* Estilo para tareas completadas */
+        .completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        /* Modo oscuro aplicado a componentes generales */
+        .dark-mode .navbar,
+        .dark-mode .modal-content,
+        .dark-mode .container,
+        .dark-mode .card,
+        .dark-mode .form-control,
+        .dark-mode .btn {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            border-color: #e0e0e0;
+        }
+
+        .dark-mode .form-control {
+            background-color: #2c2c2c;
+        }
+
+        /* Navbar en modo oscuro */
+        .dark-mode .navbar {
+            background-color: #212121 !important;
+        }
+
+        .dark-mode .navbar-brand {
+            color: #e0e0e0 !important;
+        }
+
+        /* Tabla en modo oscuro: sobreescribir estilos de Bootstrap */
+        .dark-mode .table thead tr th,
+        .dark-mode .table tbody tr td {
+            padding: 0.5rem 0.5rem;
+            color: #e0e0e0 !important;
+            background-color: #1e1e1e !important;
+            border-bottom: 1px solid #343a40;
+            box-shadow: none !important;
+        }
+
+        /* Tooltip en modo oscuro */
+        .dark-mode .tooltip-inner {
+            background-color: #333;
+            color: #fff;
+        }
+
+        /* Footer */
+        footer {
+            background-color: #f8f9fa;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+
+        .dark-mode footer {
+            background-color: #212121;
+            color: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar con selector de idioma y modo -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" id="navbarTitle" data-i18n="navbarTitle">Gestión de Tareas</a>
+            <div class="d-flex align-items-center">
+                <!-- Selector de idioma -->
+                <div class="dropdown me-2">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="languageSelector"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        🇪🇸 Español
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="languageSelector">
+                        <li><a class="dropdown-item" href="#" data-lang="en">🇺🇸 English</a></li>
+                        <li><a class="dropdown-item" href="#" data-lang="es">🇪🇸 Español</a></li>
+                        <li><a class="dropdown-item" href="#" data-lang="pt">🇵🇹 Português</a></li>
+                        <li><a class="dropdown-item" href="#" data-lang="it">🇮🇹 Italiano</a></li>
+                        <li><a class="dropdown-item" href="#" data-lang="zh">🇨🇳 中文</a></li>
+                        <li><a class="dropdown-item" href="#" data-lang="ru">🇷🇺 Русский</a></li>
+                    </ul>
+                </div>
+                <!-- Botón de modo claro/oscuro -->
+                <button class="btn btn-outline-secondary" id="themeToggle">
+                    <i class="bi bi-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <!-- Fila con botón Agregar Tarea y temporizador global -->
+        <div class="row align-items-center mb-3">
+            <div class="col-md-4">
+                <button class="btn btn-primary" id="addTaskBtn" data-i18n="addTask">Agregar Tarea</button>
+            </div>
+            <div class="col-md-4 text-center">
+                <h4 id="globalTimer">00:00</h4>
+            </div>
+        </div>
+
+        <!-- Contenedor de la tabla de tareas -->
+        <div id="tableContainer" class="table-responsive">
+            <table class="table table-hover" id="tasksTable">
+                <thead>
+                    <tr>
+                        <!-- Columna "Done": sin texto y ancho limitado -->
+                        <th style="width: 1%; white-space: nowrap;"></th>
+                        <th data-i18n="labelTitle">Título</th>
+                        <!-- Columna "Acciones": sin texto, alineada a la derecha -->
+                        <th style="width: 1%; white-space: nowrap; text-align: right;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Se generarán dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Mensaje cuando no hay tareas -->
+        <div id="emptyMessage" class="text-center my-4" style="display: none;" data-i18n="emptyList">Aún no se ha
+            agregado ninguna tarea</div>
+    </div>
+
+    <!-- Modal para Agregar/Editar Tarea -->
+    <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="taskModalLabel" data-i18n="modalAddTitle">Agregar Tarea</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="taskForm">
+                        <div class="mb-3">
+                            <label for="taskTitle" class="form-label" data-i18n="labelTitle">Título</label>
+                            <input type="text" class="form-control" id="taskTitle" required />
+                        </div>
+                        <div class="mb-3">
+                            <label for="taskDescription" class="form-label"
+                                data-i18n="labelDescription">Descripción</label>
+                            <textarea class="form-control" id="taskDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="taskTime" class="form-label" data-i18n="labelTime">Tiempo estimado
+                                (minutos)</label>
+                            <input type="number" class="form-control" id="taskTime" min="1" required />
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                        data-i18n="btnClose">Cerrar</button>
+                    <button type="submit" class="btn btn-primary" id="saveTaskBtn" data-i18n="btnSave">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container text-center">
+            <p data-i18n="footerMessage">Lo hicimos con amor.</p>
+        </div>
+    </footer>
+
+    <!-- Audio para notificación (campanita) -->
+    <audio id="bellSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+    <!-- Bootstrap Bundle JS (incluye Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mapeo de idiomas para el selector (bandera + nombre)
+        const languages = {
+            en: "🇺🇸 English",
+            es: "🇪🇸 Español",
+            pt: "🇵🇹 Português",
+            it: "🇮🇹 Italiano",
+            zh: "🇨🇳 中文",
+            ru: "🇷🇺 Русский"
+        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+            let tasks = []; // Array de tareas
+            let activeTaskId = null; // Id de la tarea en cuenta regresiva
+            let timerInterval = null; // Referencia al intervalo del temporizador
+            let editingTaskId = null; // Id de la tarea en edición
+
+            // Solicitar permiso para notificaciones usando Promesas
+            if ("Notification" in window) {
+                Notification.requestPermission().then(function (permission) {
+                    console.log("Permiso para notificaciones:", permission);
+                });
+            }
+
+            // Cargar tareas desde localStorage (si existen)
+            const storedTasks = localStorage.getItem("tasks");
+            if (storedTasks) {
+                tasks = JSON.parse(storedTasks);
+            }
+
+            const tasksTableBody = document.querySelector("#tasksTable tbody");
+            const globalTimerDisplay = document.getElementById("globalTimer");
+            const taskModalElement = document.getElementById("taskModal");
+            const taskModal = new bootstrap.Modal(taskModalElement);
+            const taskForm = document.getElementById("taskForm");
+            const addTaskBtn = document.getElementById("addTaskBtn");
+            const themeToggleBtn = document.getElementById("themeToggle");
+            const navbar = document.querySelector('.navbar');
+            const tableContainer = document.getElementById("tableContainer");
+            const emptyMessage = document.getElementById("emptyMessage");
+            const languageSelector = document.getElementById("languageSelector");
+
+            // Inicialización de i18next con traducciones
+            i18next.init({
+                lng: 'es',
+                resources: {
+                    en: {
+                        translation: {
+                            navbarTitle: "Task Management",
+                            addTask: "Add Task",
+                            emptyList: "No tasks added yet",
+                            modalAddTitle: "Add Task",
+                            modalEditTitle: "Edit Task",
+                            labelTitle: "Title",
+                            labelDescription: "Description",
+                            labelTime: "Estimated Time (minutes)",
+                            btnSave: "Save",
+                            btnClose: "Close",
+                            alertExceedTime: "Task time cannot exceed {{max}}",
+                            alertMandatory: "Title and time are required.",
+                            alertEditCompleted: "Completed task cannot be edited. Change the status to edit it.",
+                            tooltipDone: "Mark as done",
+                            tooltipDelete: "Delete task",
+                            tooltipPlay: "Start task",
+                            tooltipPause: "Pause task",
+                            notificationTaskFinished: "Task Completed",
+                            footerMessage: "Made with love."
+                        }
+                    },
+                    es: {
+                        translation: {
+                            navbarTitle: "Gestión de Tareas",
+                            addTask: "Agregar Tarea",
+                            emptyList: "Aún no se ha agregado ninguna tarea",
+                            modalAddTitle: "Agregar Tarea",
+                            modalEditTitle: "Editar Tarea",
+                            labelTitle: "Título",
+                            labelDescription: "Descripción",
+                            labelTime: "Tiempo estimado (minutos)",
+                            btnSave: "Guardar",
+                            btnClose: "Cerrar",
+                            alertExceedTime: "El tiempo de la tarea no puede superar {{max}}",
+                            alertMandatory: "Título y tiempo son obligatorios.",
+                            alertEditCompleted: "No se puede editar una tarea completada. Cambie el estado para editarla.",
+                            tooltipDone: "Marcar como completado",
+                            tooltipDelete: "Eliminar tarea",
+                            tooltipPlay: "Iniciar tarea",
+                            tooltipPause: "Pausar tarea",
+                            notificationTaskFinished: "Tarea terminada",
+                            footerMessage: "Lo hicimos con amor."
+                        }
+                    },
+                    pt: {
+                        translation: {
+                            navbarTitle: "Gestão de Tarefas",
+                            addTask: "Adicionar Tarefa",
+                            emptyList: "Ainda não foi adicionada nenhuma tarefa",
+                            modalAddTitle: "Adicionar Tarefa",
+                            modalEditTitle: "Editar Tarefa",
+                            labelTitle: "Título",
+                            labelDescription: "Descrição",
+                            labelTime: "Tempo estimado (minutos)",
+                            btnSave: "Salvar",
+                            btnClose: "Fechar",
+                            alertExceedTime: "O tempo da tarefa não pode exceder {{max}}",
+                            alertMandatory: "Título e tempo são obrigatórios.",
+                            alertEditCompleted: "Tarefa concluída não pode ser editada. Altere o estado para editá-la.",
+                            tooltipDone: "Marcar como concluída",
+                            tooltipDelete: "Excluir tarefa",
+                            tooltipPlay: "Iniciar tarefa",
+                            tooltipPause: "Pausar tarefa",
+                            notificationTaskFinished: "Tarefa concluída",
+                            footerMessage: "Feito com amor."
+                        }
+                    },
+                    it: {
+                        translation: {
+                            navbarTitle: "Gestione delle Attività",
+                            addTask: "Aggiungi Attività",
+                            emptyList: "Nessuna attività aggiunta",
+                            modalAddTitle: "Aggiungi Attività",
+                            modalEditTitle: "Modifica Attività",
+                            labelTitle: "Titolo",
+                            labelDescription: "Descrizione",
+                            labelTime: "Tempo stimato (minuti)",
+                            btnSave: "Salva",
+                            btnClose: "Chiudi",
+                            alertExceedTime: "Il tempo dell'attività non può superare {{max}}",
+                            alertMandatory: "Titolo e tempo sono obbligatori.",
+                            alertEditCompleted: "Non è possibile modificare un'attività completata. Cambia lo stato per modificarla.",
+                            tooltipDone: "Segna come fatto",
+                            tooltipDelete: "Elimina attività",
+                            tooltipPlay: "Avvia attività",
+                            tooltipPause: "Metti in pausa",
+                            notificationTaskFinished: "Attività terminata",
+                            footerMessage: "Fatto con amore."
+                        }
+                    },
+                    zh: {
+                        translation: {
+                            navbarTitle: "任务管理",
+                            addTask: "添加任务",
+                            emptyList: "还没有添加任何任务",
+                            modalAddTitle: "添加任务",
+                            modalEditTitle: "编辑任务",
+                            labelTitle: "标题",
+                            labelDescription: "描述",
+                            labelTime: "预计时间（分钟）",
+                            btnSave: "保存",
+                            btnClose: "关闭",
+                            alertExceedTime: "任务时间不能超过 {{max}}",
+                            alertMandatory: "标题和时间为必填项。",
+                            alertEditCompleted: "已完成的任务无法编辑。请更改状态以进行编辑。",
+                            tooltipDone: "标记为完成",
+                            tooltipDelete: "删除任务",
+                            tooltipPlay: "开始任务",
+                            tooltipPause: "暂停任务",
+                            notificationTaskFinished: "任务完成",
+                            footerMessage: "用爱制作。"
+                        }
+                    },
+                    ru: {
+                        translation: {
+                            navbarTitle: "Управление задачами",
+                            addTask: "Добавить задачу",
+                            emptyList: "Задачи ещё не добавлены",
+                            modalAddTitle: "Добавить задачу",
+                            modalEditTitle: "Редактировать задачу",
+                            labelTitle: "Название",
+                            labelDescription: "Описание",
+                            labelTime: "Оценочное время (минут)",
+                            btnSave: "Сохранить",
+                            btnClose: "Закрыть",
+                            alertExceedTime: "Время задачи не может превышать {{max}}",
+                            alertMandatory: "Название и время обязательны.",
+                            alertEditCompleted: "Невозможно редактировать завершённую задачу. Измените статус, чтобы отредактировать.",
+                            tooltipDone: "Отметить как выполнено",
+                            tooltipDelete: "Удалить задачу",
+                            tooltipPlay: "Запустить задачу",
+                            tooltipPause: "Приостановить задачу",
+                            notificationTaskFinished: "Задача завершена",
+                            footerMessage: "Сделано с любовью."
+                        }
+                    }
+                }
+            }, function (err, t) {
+                updateTexts();
+            });
+
+            // Función para actualizar todos los textos traducidos
+            function updateTexts() {
+                document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                    const key = el.getAttribute('data-i18n');
+                    el.innerText = i18next.t(key);
+                });
+                // Actualiza el título del modal si está en modo "agregar"
+                if (!editingTaskId) {
+                    document.getElementById("taskModalLabel").innerText = i18next.t("modalAddTitle");
+                }
+                // Actualiza el texto del botón "Agregar Tarea"
+                addTaskBtn.innerText = i18next.t("addTask");
+                // Actualiza el mensaje vacío si corresponde
+                emptyMessage.innerText = i18next.t("emptyList");
+                // Actualiza el navbar
+                document.getElementById("navbarTitle").innerText = i18next.t("navbarTitle");
+                // Actualiza el selector de idioma
+                languageSelector.innerHTML = languages[i18next.language] || languages["es"];
+            }
+
+            // Manejador para cambiar idioma desde el dropdown
+            document.querySelectorAll('[data-lang]').forEach(function (el) {
+                el.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const lang = this.getAttribute("data-lang");
+                    i18next.changeLanguage(lang, function (err, t) {
+                        updateTexts();
+                        renderTasks(); // Actualiza textos en la lista
+                    });
+                });
+            });
+
+            // Calcula el tiempo pendiente total (en minutos) de las tareas incompletas.
+            function calcularTiempoPendiente() {
+                let totalSeconds = tasks.filter(t => !t.completed).reduce((sum, t) => {
+                    const secs = (t.remainingTime !== undefined && t.remainingTime < t.estimatedTime * 60)
+                        ? t.remainingTime
+                        : t.estimatedTime * 60;
+                    return sum + secs;
+                }, 0);
+                return totalSeconds / 60;
+            }
+
+            // Actualiza el estado del botón "Agregar Tarea" según el tiempo pendiente.
+            function actualizarEstadoAgregar() {
+                const totalPendiente = calcularTiempoPendiente();
+                addTaskBtn.disabled = totalPendiente >= 20;
+            }
+
+            // Guarda la lista de tareas en localStorage.
+            function guardarTareas() {
+                localStorage.setItem("tasks", JSON.stringify(tasks));
+            }
+
+            // Abrir modal para agregar tarea.
+            addTaskBtn.addEventListener("click", function () {
+                editingTaskId = null;
+                document.getElementById("taskModalLabel").innerText = i18next.t("modalAddTitle");
+                taskForm.reset();
+                taskModal.show();
+            });
+
+            // Enfocar el campo "Título" al mostrar el modal.
+            taskModalElement.addEventListener("shown.bs.modal", function () {
+                document.getElementById("taskTitle").focus();
+            });
+
+            // Validar el campo "Tiempo estimado" al perder el foco.
+            document.getElementById("taskTime").addEventListener("blur", function () {
+                const inputTime = parseInt(this.value) || 0;
+                let totalTiempoOtros = 0;
+                if (editingTaskId) {
+                    totalTiempoOtros = tasks.filter(t => !t.completed && t.id !== editingTaskId)
+                        .reduce((sum, t) => sum + t.estimatedTime, 0);
+                } else {
+                    totalTiempoOtros = tasks.filter(t => !t.completed)
+                        .reduce((sum, t) => sum + t.estimatedTime, 0);
+                }
+                const maxPermitido = 20 - totalTiempoOtros;
+                if (inputTime > maxPermitido) {
+                    alert(i18next.t("alertExceedTime", { max: maxPermitido }));
+                }
+            });
+
+            // Guardar (agregar o editar) tarea.
+            document.getElementById("saveTaskBtn").addEventListener("click", function (e) {
+                e.preventDefault();
+                const title = document.getElementById("taskTitle").value.trim();
+                const description = document.getElementById("taskDescription").value;
+                const estimatedTime = parseInt(document.getElementById("taskTime").value);
+
+                if (!title || !estimatedTime) {
+                    alert(i18next.t("alertMandatory"));
+                    return;
+                }
+
+                if (editingTaskId) {
+                    tasks = tasks.map((task) => {
+                        if (task.id === editingTaskId) {
+                            return { ...task, title, description, estimatedTime, remainingTime: estimatedTime * 60 };
+                        }
+                        return task;
+                    });
+                } else {
+                    const newTask = {
+                        id: Date.now(),
+                        title,
+                        description,
+                        estimatedTime,
+                        completed: false,
+                        remainingTime: estimatedTime * 60,
+                    };
+                    tasks.push(newTask);
+                }
+                taskModal.hide();
+                renderTasks();
+            });
+
+            // Renderiza la lista de tareas o muestra mensaje vacío si no hay tareas.
+            function renderTasks() {
+                tasksTableBody.innerHTML = "";
+                if (tasks.length === 0) {
+                    tableContainer.style.display = "none";
+                    emptyMessage.style.display = "block";
+                } else {
+                    tableContainer.style.display = "block";
+                    emptyMessage.style.display = "none";
+                    tasks.forEach((task) => {
+                        const tr = document.createElement("tr");
+                        tr.setAttribute("data-task-id", task.id);
+                        if (task.completed) {
+                            tr.classList.add("completed");
+                        }
+
+                        // Columna 1: Checkbox "Done" con tooltip.
+                        const tdCheckbox = document.createElement("td");
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.className = "form-check-input";
+                        checkbox.checked = task.completed;
+                        if (task.completed) checkbox.disabled = true;
+                        checkbox.setAttribute("data-bs-toggle", "tooltip");
+                        checkbox.setAttribute("title", i18next.t("tooltipDone"));
+                        checkbox.addEventListener("click", function (e) {
+                            e.stopPropagation();
+                            task.completed = this.checked;
+                            if (task.completed && activeTaskId === task.id) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                                activeTaskId = null;
+                                updateGlobalTimer(0);
+                            }
+                            renderTasks();
+                        });
+                        tdCheckbox.appendChild(checkbox);
+                        tr.appendChild(tdCheckbox);
+
+                        // Columna 2: Título con tooltip (si la descripción está vacía se usa el título)
+                        const tdTitle = document.createElement("td");
+                        const titleSpan = document.createElement("span");
+                        titleSpan.innerText = task.title;
+                        const tooltipText = (task.description && task.description.trim() !== "") ? task.description : task.title;
+                        titleSpan.setAttribute("data-bs-toggle", "tooltip");
+                        titleSpan.setAttribute("title", tooltipText);
+                        tdTitle.appendChild(titleSpan);
+                        tdTitle.style.cursor = "pointer";
+                        tdTitle.addEventListener("click", function (e) {
+                            if (task.completed) {
+                                alert(i18next.t("alertEditCompleted"));
+                                return;
+                            }
+                            editingTaskId = task.id;
+                            document.getElementById("taskModalLabel").innerText = i18next.t("modalEditTitle");
+                            document.getElementById("taskTitle").value = task.title;
+                            document.getElementById("taskDescription").value = task.description;
+                            document.getElementById("taskTime").value = task.estimatedTime;
+                            taskModal.show();
+                        });
+                        tr.appendChild(tdTitle);
+
+                        // Columna 3: Acciones (alineado a la derecha)
+                        const tdActions = document.createElement("td");
+                        tdActions.style.textAlign = "right";
+                        tdActions.style.whiteSpace = "nowrap";
+
+                        // Botón Delete con tooltip.
+                        const deleteBtn = document.createElement("button");
+                        deleteBtn.className = "btn btn-sm btn-danger me-1";
+                        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                        deleteBtn.setAttribute("data-bs-toggle", "tooltip");
+                        deleteBtn.setAttribute("title", i18next.t("tooltipDelete"));
+                        deleteBtn.addEventListener("click", function (e) {
+                            e.stopPropagation();
+                            if (activeTaskId === task.id) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                                activeTaskId = null;
+                                updateGlobalTimer(0);
+                            }
+                            tasks = tasks.filter((t) => t.id !== task.id);
+                            renderTasks();
+                        });
+                        tdActions.appendChild(deleteBtn);
+
+                        // Botón Iniciar/Pausa: se muestra solo si la tarea NO está completada.
+                        if (!task.completed) {
+                            const startBtn = document.createElement("button");
+                            startBtn.className = "btn btn-sm btn-primary";
+                            if (activeTaskId === task.id) {
+                                startBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+                                startBtn.setAttribute("data-bs-toggle", "tooltip");
+                                startBtn.setAttribute("title", i18next.t("tooltipPause"));
+                            } else {
+                                startBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+                                startBtn.setAttribute("data-bs-toggle", "tooltip");
+                                startBtn.setAttribute("title", i18next.t("tooltipPlay"));
+                            }
+                            startBtn.addEventListener("click", function (e) {
+                                e.stopPropagation();
+                                if (task.completed) return;
+                                if (activeTaskId === task.id) {
+                                    clearInterval(timerInterval);
+                                    timerInterval = null;
+                                    activeTaskId = null;
+                                } else {
+                                    if (activeTaskId !== null) {
+                                        clearInterval(timerInterval);
+                                        timerInterval = null;
+                                    }
+                                    activeTaskId = task.id;
+                                    if (!task.remainingTime || task.remainingTime <= 0) {
+                                        task.remainingTime = task.estimatedTime * 60;
+                                    }
+                                    timerInterval = setInterval(function () {
+                                        if (task.remainingTime > 0) {
+                                            task.remainingTime--;
+                                            updateGlobalTimer(task.remainingTime);
+                                        } else {
+                                            clearInterval(timerInterval);
+                                            timerInterval = null;
+                                            activeTaskId = null;
+                                            task.completed = true;
+                                            // Al llegar a 0: notificar, reproducir sonido y actualizar timer.
+                                            if (Notification.permission === "granted") {
+                                                new Notification(i18next.t("notificationTaskFinished"));
+                                            }
+                                            document.getElementById("bellSound").play();
+                                            updateGlobalTimer(0);
+                                            renderTasks();
+                                        }
+                                    }, 1000);
+                                }
+                                renderTasks();
+                            });
+                            tdActions.appendChild(startBtn);
+                        }
+                        tr.appendChild(tdActions);
+                        tasksTableBody.appendChild(tr);
+                    });
+                }
+                // Antes de inicializar nuevos tooltips, se eliminan (dispose) los existentes
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                    let tooltipInstance = bootstrap.Tooltip.getInstance(el);
+                    if (tooltipInstance) {
+                        tooltipInstance.dispose();
+                    }
+                });
+                // Inicializa tooltips en elementos recién creados.
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+
+                actualizarEstadoAgregar();
+                guardarTareas();
+                if (!activeTaskId) {
+                    updateGlobalTimer(0);
+                }
+            }
+
+            // Actualiza el temporizador global en formato mm:ss.
+            function updateGlobalTimer(seconds) {
+                let timeInSeconds = seconds;
+                if (!activeTaskId) {
+                    timeInSeconds = tasks.filter(t => !t.completed).reduce((sum, t) => {
+                        const secs = (t.remainingTime !== undefined && t.remainingTime < t.estimatedTime * 60)
+                            ? t.remainingTime
+                            : t.estimatedTime * 60;
+                        return sum + secs;
+                    }, 0);
+                }
+                const minutes = Math.floor(timeInSeconds / 60);
+                const secs = timeInSeconds % 60;
+                globalTimerDisplay.innerText = String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+            }
+
+            // Toggle de Modo Oscuro/Claro (actualiza también el navbar y el botón de cerrar en el modal)
+            themeToggleBtn.addEventListener("click", function () {
+                document.body.classList.toggle("dark-mode");
+                if (document.body.classList.contains("dark-mode")) {
+                    this.innerHTML = '<i class="bi bi-sun"></i>';
+                    navbar.classList.remove("navbar-light", "bg-light");
+                    navbar.classList.add("navbar-dark", "bg-dark");
+                    const btnClose = document.querySelector(".modal-header .btn-close");
+                    if (btnClose) {
+                        btnClose.classList.add("btn-close-white");
+                    }
+                } else {
+                    this.innerHTML = '<i class="bi bi-moon"></i>';
+                    navbar.classList.remove("navbar-dark", "bg-dark");
+                    navbar.classList.add("navbar-light", "bg-light");
+                    const btnClose = document.querySelector(".modal-header .btn-close");
+                    if (btnClose) {
+                        btnClose.classList.remove("btn-close-white");
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
