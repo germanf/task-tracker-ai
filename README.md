@@ -70,5 +70,6 @@ Además, la integración de IA en el desarrollo de software permitirá:
 
 ## 5. Notas Finales
 
+Todo el código fué integramente generado por la IA. La única intervención humana fué a través de IA prompting.
 Este proyecto es un reflejo de la constante mejora y adaptabilidad que la tecnología nos ofrece. La capacidad de interactuar con un sistema de IA y refinar una idea hasta lograr un producto final funcional y bien estructurado demuestra el potencial de estas herramientas para potenciar la productividad y la creatividad humana. 🚀
 
